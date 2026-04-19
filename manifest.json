@@ -1,0 +1,17 @@
+{
+  "name": "栄養量計算ツール",
+  "short_name": "栄養計算",
+  "description": "点滴・食事・経腸栄養・ONSの1日栄養量を端末内で計算する静的ウェブアプリです。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f7f8",
+  "theme_color": "#0f766e",
+  "categories": [
+    "medical",
+    "productivity"
+  ],
+  "icons": []
+}
