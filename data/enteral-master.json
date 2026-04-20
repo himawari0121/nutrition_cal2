@@ -1,0 +1,29 @@
+[
+  {
+    "id": "enteral-sample-a",
+    "name": "経腸栄養サンプルA",
+    "kana": "けいちょうえいようさんぷるa",
+    "aliases": ["sample-a", "サンプルa"],
+    "category": "サンプル",
+    "tags": ["サンプル", "動作確認"],
+    "favorite": false,
+    "baseAmount": 100,
+    "baseUnit": "mL",
+    "nutrients": {
+      "energyKcal": 100,
+      "proteinG": 4,
+      "fatG": 3,
+      "carbohydrateG": 15,
+      "sodiumMEq": 0,
+      "potassiumMEq": 0,
+      "magnesiumMg": 0,
+      "phosphorusMg": 0,
+      "waterMl": 85,
+      "insulinU": 0
+    },
+    "memo": "動作確認用サンプル（実製品ではありません）",
+    "source": "内部サンプル",
+    "sourceStatus": "sample",
+    "updatedAt": "2026-04-19"
+  }
+]

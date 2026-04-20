@@ -1,0 +1,2549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="栄養計算" />
+<meta name="theme-color" content="#0a5f6e" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="manifest" href="./manifest.json" />
+<title>栄養量計算補助ツール</title>
+<style>
+/* ==========================================================
+   CSS 変数とリセット
+   ========================================================== */
+:root {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --border: #d1d1d6;
+  --border-strong: #9ca3af;
+  --text: #1c1c1e;
+  --text-sub: #4b5563;
+  --text-muted: #6b7280;
+  --primary: #0a5f6e;
+  --primary-dark: #084c59;
+  --primary-light: #e0f2f5;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --success: #15803d;
+  --success-bg: #dcfce7;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  padding-top: var(--safe-top);
+  /* 固定サマリーぶんの余白（固定サマリー自身の高さ + 安全領域） */
+  padding-bottom: calc(160px + var(--safe-bottom));
+  min-height: 100vh;
+}
+
+/* ==========================================================
+   ヘッダー
+   ========================================================== */
+.app-header {
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 16px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.app-header h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.app-header .sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  opacity: 0.92;
+  line-height: 1.35;
+}
+
+/* ==========================================================
+   メインコンテナ
+   ========================================================== */
+main {
+  padding: 10px 12px 12px;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* ==========================================================
+   セクション（カード）
+   ========================================================== */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin: 10px 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.card-head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: #fafbfc;
+}
+.card-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.card-head .subtotal {
+  font-size: 13px;
+  color: var(--text-sub);
+  text-align: right;
+  line-height: 1.3;
+}
+.card-head .subtotal .kv { white-space: nowrap; }
+.card-head .subtotal strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.card-body { padding: 8px 10px 10px; }
+
+/* ==========================================================
+   行（row）
+   ========================================================== */
+.row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 10px 8px;
+  margin: 6px 0;
+  background: #fff;
+  position: relative;
+}
+.row.empty { background: #fafafa; border-style: dashed; }
+.row.warning { border-color: var(--warning); background: #fffbeb; }
+.row .row-top {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  position: relative;
+}
+.row .row-top .combobox-wrap { flex: 1; min-width: 0; }
+.row .row-qty {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.row .row-qty.single { grid-template-columns: 1fr; }
+.row .row-qty label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-sub);
+  margin-bottom: 2px;
+}
+.row .row-qty .field {
+  display: flex;
+  align-items: stretch;
+}
+.row .row-qty input {
+  width: 100%;
+  min-width: 0;
+}
+.row .row-qty .unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+.row .row-qty input.has-unit {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.row .row-memo {
+  margin-top: 6px;
+}
+.row .row-memo input {
+  width: 100%;
+  font-size: 13.5px;
+}
+.row .row-subtotal {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #f3f4f6;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-sub);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+.row .row-subtotal .item { margin-right: 8px; white-space: nowrap; }
+.row .row-subtotal.warn {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.row .row-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+.row .row-actions button {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+/* ==========================================================
+   ボタン
+   ========================================================== */
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button:active { background: #eef2f3; }
+button.primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+button.primary:active { background: var(--primary-dark); }
+button.danger {
+  background: #fff;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+button.danger:active { background: var(--danger-bg); }
+button.ghost {
+  background: transparent;
+  border-color: var(--border);
+}
+button.icon {
+  min-width: 44px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+button.small { min-height: 32px; padding: 4px 10px; font-size: 12.5px; }
+button[disabled] { opacity: 0.5; }
+
+/* ==========================================================
+   入力欄
+   ========================================================== */
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="date"],
+input:not([type]),
+textarea,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 16px; /* iOS で拡大を防ぐ */
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+  min-height: 44px;
+  line-height: 1.2;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(10,95,110,0.15);
+}
+input.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-right: 10px;
+}
+
+/* ==========================================================
+   コンボボックス（独自候補リスト）
+   ========================================================== */
+.combobox-wrap { position: relative; }
+.combobox-wrap .cb-input-wrap { position: relative; }
+.combobox-wrap input.cb-input { padding-right: 38px; }
+.combobox-wrap .cb-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+.combobox-wrap .cb-clear:active { background: #f3f4f6; }
+.combobox-wrap .cb-list {
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(100% + 2px);
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  z-index: 100;
+  max-height: 340px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: none;
+}
+.combobox-wrap .cb-list.open { display: block; }
+.combobox-wrap .cb-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef0f2;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.combobox-wrap .cb-item:last-child { border-bottom: none; }
+.combobox-wrap .cb-item:active { background: var(--primary-light); }
+.combobox-wrap .cb-item .cb-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.combobox-wrap .cb-item .cb-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.combobox-wrap .cb-item .cb-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.combobox-wrap .cb-item .cb-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.badge-fav { background: #fff3cd; color: #92400e; }
+.badge-recent { background: #e0e7ff; color: #3730a3; }
+.badge-not_entered { background: var(--warning-bg); color: var(--warning); }
+.badge-sample { background: var(--primary-light); color: var(--primary-dark); }
+.badge-unverified { background: var(--warning-bg); color: var(--warning); }
+.badge-verified { background: var(--success-bg); color: var(--success); }
+.combobox-wrap .cb-empty {
+  padding: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 13px;
+}
+
+/* ==========================================================
+   警告バー
+   ========================================================== */
+.notice {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.notice.warn { background: var(--warning-bg); color: var(--warning); }
+.notice.info { background: var(--primary-light); color: var(--primary-dark); }
+.notice.danger { background: var(--danger-bg); color: var(--danger); }
+
+/* ==========================================================
+   合計セクション
+   ========================================================== */
+.totals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.totals-grid .cell {
+  background: #f3f4f6;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+.totals-grid .cell .label {
+  color: var(--text-sub);
+  font-size: 12px;
+}
+.totals-grid .cell .val {
+  font-weight: 600;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.totals-grid .cell .unit {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-left: 2px;
+}
+.totals-sub {
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  background: #fafbfc;
+  border-left: 3px solid var(--primary);
+  font-size: 13px;
+  color: var(--text-sub);
+  font-weight: 600;
+}
+.total-grand {
+  background: var(--primary-light) !important;
+}
+.total-grand .val { color: var(--primary-dark); font-size: 17px; }
+
+/* ==========================================================
+   固定サマリー（画面下部）
+   ========================================================== */
+.sticky-summary {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  background: rgba(255,255,255,0.96);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  backdrop-filter: saturate(180%) blur(10px);
+  border-top: 1px solid var(--border);
+  padding: 8px 12px calc(8px + var(--safe-bottom));
+  z-index: 50;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+}
+.sticky-summary .row1 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.sticky-summary .item {
+  background: #fafbfc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  text-align: center;
+  line-height: 1.1;
+}
+.sticky-summary .item .lbl {
+  font-size: 10px;
+  color: var(--text-sub);
+}
+.sticky-summary .item .val {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  display: block;
+  margin-top: 1px;
+}
+.sticky-summary .item .u {
+  font-size: 9.5px;
+  color: var(--text-sub);
+  margin-left: 1px;
+  font-weight: 500;
+}
+.sticky-summary .row2 {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-sub);
+  font-variant-numeric: tabular-nums;
+}
+.sticky-summary .row2 strong {
+  color: var(--primary-dark);
+  font-size: 13px;
+}
+
+/* ==========================================================
+   モーダル
+   ========================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px;
+  overflow-y: auto;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: #fff;
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+  overflow: hidden;
+  margin: auto;
+}
+.modal-head {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-head h3 { margin: 0; font-size: 16px; }
+.modal-body { padding: 14px 16px; max-height: 70vh; overflow-y: auto; }
+.modal-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================
+   マスタ編集
+   ========================================================== */
+.master-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.master-tabs button.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.master-list {
+  max-height: 50vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.master-list .mitem {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef0f2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+.master-list .mitem:last-child { border-bottom: none; }
+.master-list .mitem .mname { flex: 1; min-width: 0; }
+.master-list .mitem .mname .n {
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.master-list .mitem .mname .s {
+  font-size: 11px; color: var(--text-muted);
+}
+.master-list .mitem .mbtns { display: flex; gap: 4px; flex-shrink: 0; }
+.master-list .mitem .mbtns button { min-height: 32px; padding: 0 8px; font-size: 12px; }
+
+.master-form label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-sub);
+  margin: 8px 0 2px;
+}
+.master-form input, .master-form select, .master-form textarea {
+  width: 100%;
+}
+.master-form .pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.master-form .nutrient-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+}
+.master-form .nutrient-grid label { margin-top: 4px; }
+.master-form .nutrient-grid input {
+  padding: 8px 10px;
+  min-height: 40px;
+}
+.master-form .nutrient-grid .hint {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ==========================================================
+   保存データ管理
+   ========================================================== */
+.save-list .sitem {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin: 4px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.save-list .sitem .snm { flex: 1; min-width: 0; }
+.save-list .sitem .snm .n { font-size: 14px; font-weight: 500; }
+.save-list .sitem .snm .s { font-size: 11px; color: var(--text-muted); }
+.save-list .sitem .sbtns { display: flex; gap: 4px; }
+
+/* ==========================================================
+   サマリーコピー表示
+   ========================================================== */
+.copy-text {
+  width: 100%;
+  min-height: 220px;
+  font-family: -apple-system, monospace, sans-serif;
+  font-size: 13px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  background: #fafbfc;
+  resize: vertical;
+}
+
+/* ==========================================================
+   トースト
+   ========================================================== */
+.toast {
+  position: fixed;
+  bottom: calc(180px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20,20,24,0.92);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 300;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.toast.show { opacity: 1; }
+
+/* ==========================================================
+   自己テスト結果
+   ========================================================== */
+.self-test {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+.self-test.pass { background: var(--success-bg); color: var(--success); }
+.self-test.fail { background: var(--danger-bg); color: var(--danger); }
+
+/* ==========================================================
+   その他ユーティリティ
+   ========================================================== */
+.flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mb-8 { margin-bottom: 8px; }
+.text-sub { color: var(--text-sub); }
+.text-muted { color: var(--text-muted); }
+.text-sm { font-size: 13px; }
+.text-xs { font-size: 11.5px; }
+.hidden { display: none !important; }
+.w-full { width: 100%; }
+.small-btns button { min-height: 38px; padding: 6px 10px; font-size: 13px; }
+
+/* フォーカスリング（キーボードのみ） */
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* タブレット以上で多少広げる */
+@media (min-width: 640px) {
+  .totals-grid { grid-template-columns: repeat(3, 1fr); }
+  .sticky-summary .row1 { grid-template-columns: repeat(4, 1fr); max-width: 820px; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>栄養量計算補助ツール</h1>
+  <div class="sub">このツールは栄養量の計算補助です。治療・処方・投与判断は医療者が確認してください。</div>
+</header>
+
+<main id="main">
+  <!-- 1. 今日の記録 -->
+  <section class="card" id="sec-record">
+    <div class="card-head">
+      <h2>① 今日の記録</h2>
+    </div>
+    <div class="card-body">
+      <div class="pair" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <div>
+          <label class="text-xs text-sub">日付</label>
+          <input type="date" id="rec-date" />
+        </div>
+        <div>
+          <label class="text-xs text-sub">ケース名（任意）</label>
+          <input type="text" id="rec-casename" placeholder="例: 病棟A-1 / ベッド番号等" autocomplete="off" />
+        </div>
+      </div>
+      <div class="notice info mt-8 text-xs">
+        個人情報（氏名・ID等）は入力しないでください。ケース名は任意の識別用ラベルです。
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 点滴 -->
+  <section class="card" id="sec-iv">
+    <div class="card-head">
+      <h2>② 点滴</h2>
+      <div class="subtotal" id="subtotal-iv">—</div>
+    </div>
+    <div class="card-body">
+      <div class="rows" id="rows-iv"></div>
+      <div class="flex gap-6 mt-8 small-btns">
+        <button type="button" class="ghost" data-add="iv">＋ 空行を追加</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 食事 -->
+  <section class="card" id="sec-meal">
+    <div class="card-head">
+      <h2>③ 食事</h2>
+      <div class="subtotal" id="subtotal-meal">—</div>
+    </div>
+    <div class="card-body">
+      <div class="rows" id="rows-meal"></div>
+      <div class="flex gap-6 mt-8 small-btns">
+        <button type="button" class="ghost" data-add="meal">＋ 空行を追加</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 経腸栄養 -->
+  <section class="card" id="sec-enteral">
+    <div class="card-head">
+      <h2>④ 経腸栄養</h2>
+      <div class="subtotal" id="subtotal-enteral">—</div>
+    </div>
+    <div class="card-body">
+      <div class="rows" id="rows-enteral"></div>
+      <div class="flex gap-6 mt-8 small-btns">
+        <button type="button" class="ghost" data-add="enteral">＋ 空行を追加</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ONS -->
+  <section class="card" id="sec-ons">
+    <div class="card-head">
+      <h2>⑤ ONS（経口栄養補助食品）</h2>
+      <div class="subtotal" id="subtotal-ons">—</div>
+    </div>
+    <div class="card-body">
+      <div class="rows" id="rows-ons"></div>
+      <div class="flex gap-6 mt-8 small-btns">
+        <button type="button" class="ghost" data-add="ons">＋ 空行を追加</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. 合計 -->
+  <section class="card" id="sec-totals">
+    <div class="card-head">
+      <h2>⑥ 合計</h2>
+      <div class="subtotal" id="totals-warn"></div>
+    </div>
+    <div class="card-body">
+      <div class="totals-sub">点滴小計</div>
+      <div class="totals-grid" id="total-iv"></div>
+
+      <div class="totals-sub mt-12">食事小計</div>
+      <div class="totals-grid" id="total-meal"></div>
+
+      <div class="totals-sub mt-12">経腸栄養小計</div>
+      <div class="totals-grid" id="total-enteral"></div>
+
+      <div class="totals-sub mt-12">ONS 小計</div>
+      <div class="totals-grid" id="total-ons"></div>
+
+      <div class="totals-sub mt-12">1 日合計</div>
+      <div class="totals-grid" id="total-grand"></div>
+
+      <div id="self-test-result" class="self-test hidden"></div>
+    </div>
+  </section>
+
+  <!-- 7. サマリーコピー -->
+  <section class="card" id="sec-copy">
+    <div class="card-head">
+      <h2>⑦ 日次サマリーコピー</h2>
+    </div>
+    <div class="card-body">
+      <div class="flex gap-6 mb-8 small-btns">
+        <button type="button" class="primary" id="btn-regen">サマリー生成</button>
+        <button type="button" id="btn-copy">コピー</button>
+      </div>
+      <textarea class="copy-text" id="summary-text" readonly placeholder="「サマリー生成」を押すとここに表示されます"></textarea>
+    </div>
+  </section>
+
+  <!-- 8. 保存データ管理 -->
+  <section class="card" id="sec-save">
+    <div class="card-head">
+      <h2>⑧ 保存データ管理</h2>
+    </div>
+    <div class="card-body">
+      <div class="flex gap-6 flex-wrap small-btns mb-8">
+        <button type="button" class="primary" id="btn-save">現在のデータを保存</button>
+        <button type="button" id="btn-new">新規作成</button>
+        <button type="button" id="btn-copy-prev">前日データ複製</button>
+      </div>
+      <div class="flex gap-6 flex-wrap small-btns mb-8">
+        <button type="button" id="btn-export-records">記録を JSON 書き出し</button>
+        <button type="button" id="btn-import-records">記録を JSON 読み込み</button>
+        <input type="file" id="file-import-records" accept="application/json" hidden />
+      </div>
+      <div class="save-list" id="save-list"></div>
+    </div>
+  </section>
+
+  <!-- 9. マスタ管理 -->
+  <section class="card" id="sec-master">
+    <div class="card-head">
+      <h2>⑨ マスタ管理</h2>
+    </div>
+    <div class="card-body">
+      <div class="master-tabs small-btns">
+        <button type="button" data-mt="iv" class="active">点滴</button>
+        <button type="button" data-mt="meal">食事</button>
+        <button type="button" data-mt="enteral">経腸</button>
+        <button type="button" data-mt="ons">ONS</button>
+      </div>
+      <input type="search" id="master-search" placeholder="マスタ内を検索（名前・ふりがな等）" autocomplete="off" />
+      <div class="flex gap-6 mt-8 flex-wrap small-btns">
+        <button type="button" class="primary" id="btn-master-add">＋ 追加</button>
+        <button type="button" id="btn-master-export">JSON 書き出し</button>
+        <button type="button" id="btn-master-import">JSON 読み込み</button>
+        <button type="button" class="danger" id="btn-master-reset">初期マスタに戻す</button>
+        <input type="file" id="file-master-import" accept="application/json" hidden />
+      </div>
+      <div class="master-list mt-8" id="master-list"></div>
+      <div class="text-xs text-muted mt-8">
+        JSON 書き出しで data/ フォルダ内ファイルを更新できます。端末内編集は自動保存されます。
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 固定サマリー -->
+<div class="sticky-summary" id="sticky-summary">
+  <div class="row1">
+    <div class="item"><span class="lbl">エネルギー</span><span class="val" id="sum-kcal">0</span><span class="u"> kcal</span></div>
+    <div class="item"><span class="lbl">たんぱく質</span><span class="val" id="sum-prot">0.0</span><span class="u"> g</span></div>
+    <div class="item"><span class="lbl">糖質</span><span class="val" id="sum-carb">0.0</span><span class="u"> g</span></div>
+    <div class="item"><span class="lbl">水分</span><span class="val" id="sum-water">0.0</span><span class="u"> mL</span></div>
+  </div>
+  <div class="row2">
+    点滴糖質インスリン比: <strong id="sum-ratio">—</strong> g/U &nbsp;|&nbsp; 混注 <strong id="sum-insulin">0.0</strong> U
+    <span id="sum-notice"></span>
+  </div>
+</div>
+
+<!-- モーダル: 行削除確認 -->
+<div class="modal-backdrop" id="modal-confirm">
+  <div class="modal">
+    <div class="modal-head"><h3>確認</h3></div>
+    <div class="modal-body" id="confirm-body"></div>
+    <div class="modal-foot">
+      <button type="button" id="confirm-cancel">キャンセル</button>
+      <button type="button" class="danger" id="confirm-ok">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: マスタ編集 -->
+<div class="modal-backdrop" id="modal-master">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="master-form-title">マスタ編集</h3>
+      <button type="button" class="icon ghost" id="master-close">✕</button>
+    </div>
+    <div class="modal-body master-form">
+      <label>名前 <span class="text-xs text-muted">必須</span></label>
+      <input type="text" id="mf-name" autocomplete="off" />
+      <label>ふりがな（ひらがな推奨）</label>
+      <input type="text" id="mf-kana" autocomplete="off" />
+      <label>別名（カンマ区切り）</label>
+      <input type="text" id="mf-aliases" autocomplete="off" />
+      <label>分類</label>
+      <input type="text" id="mf-category" autocomplete="off" />
+      <label>検索タグ（カンマ区切り）</label>
+      <input type="text" id="mf-tags" autocomplete="off" />
+      <div class="pair">
+        <div>
+          <label>基準量</label>
+          <input type="number" id="mf-base" class="numeric" inputmode="decimal" step="any" />
+        </div>
+        <div>
+          <label>基準単位</label>
+          <input type="text" id="mf-unit" autocomplete="off" placeholder="mL, U, 食, 本 など" />
+        </div>
+      </div>
+      <label class="mt-12"><strong>基準量あたりの栄養値</strong></label>
+      <div class="nutrient-grid">
+        <div><label>エネルギー (kcal)</label><input type="number" id="mf-energyKcal" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>たんぱく質 (g)</label><input type="number" id="mf-proteinG" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>脂質 (g)</label><input type="number" id="mf-fatG" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>糖質 (g)</label><input type="number" id="mf-carbohydrateG" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>ナトリウム (mEq)</label><input type="number" id="mf-sodiumMEq" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>カリウム (mEq)</label><input type="number" id="mf-potassiumMEq" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>マグネシウム (mg)</label><input type="number" id="mf-magnesiumMg" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>リン (mg)</label><input type="number" id="mf-phosphorusMg" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>水分 (mL)</label><input type="number" id="mf-waterMl" class="numeric" inputmode="decimal" step="any" /></div>
+        <div><label>インスリン (U, 点滴のみ)</label><input type="number" id="mf-insulinU" class="numeric" inputmode="decimal" step="any" /></div>
+        <div class="hint">空欄は null（実データ未入力）として登録されます。0 と null は区別されます。</div>
+      </div>
+      <label class="mt-12">メモ</label>
+      <textarea id="mf-memo" rows="2"></textarea>
+      <label>出典（任意）</label>
+      <input type="text" id="mf-source" autocomplete="off" />
+      <label>データ状態</label>
+      <select id="mf-status">
+        <option value="not_entered">未入力 (not_entered)</option>
+        <option value="sample">サンプル (sample)</option>
+        <option value="unverified">未確認 (unverified)</option>
+        <option value="verified">確認済み (verified)</option>
+      </select>
+      <label class="mt-12">
+        <input type="checkbox" id="mf-fav" style="width:auto; min-height:auto; margin-right:6px;" />
+        お気に入り
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button type="button" id="master-cancel">キャンセル</button>
+      <button type="button" class="primary" id="master-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   埋め込みフォールバック用マスタデータ
+   (data/*.json の読み込みに失敗しても最低限動くように)
+   - 点滴マスタの実製品名は null + sourceStatus: "not_entered"
+   - それ以外はサンプルとして明示
+   ============================================================ */
+const FALLBACK_MASTERS = {
+  iv: [
+    { id: "iv-sample-a", name: "点滴サンプルA", kana: "てんてきさんぷるa", aliases: [], category: "サンプル", tags: ["サンプル"], favorite: false, baseAmount: 500, baseUnit: "mL",
+      nutrients: { energyKcal: 200, proteinG: 0, fatG: 0, carbohydrateG: 50, sodiumMEq: 0, potassiumMEq: 0, magnesiumMg: 0, phosphorusMg: 0, waterMl: 500, insulinU: 0 },
+      memo: "動作確認用サンプル", source: "内部サンプル", sourceStatus: "sample", updatedAt: "2026-04-19" },
+    { id: "iv-sample-insulin", name: "インスリンサンプル", kana: "いんすりんさんぷる", aliases: ["インスリン"], category: "インスリン(サンプル)", tags: ["サンプル","インスリン"], favorite: false, baseAmount: 1, baseUnit: "U",
+      nutrients: { energyKcal: 0, proteinG: 0, fatG: 0, carbohydrateG: 0, sodiumMEq: 0, potassiumMEq: 0, magnesiumMg: 0, phosphorusMg: 0, waterMl: 0, insulinU: 1 },
+      memo: "動作確認用サンプル", source: "内部サンプル", sourceStatus: "sample", updatedAt: "2026-04-19" }
+  ],
+  meal: [
+    { id: "meal-sample-a", name: "食事サンプルA", kana: "しょくじさんぷるa", aliases: [], category: "サンプル", tags: ["サンプル"], favorite: false, baseAmount: 1, baseUnit: "食",
+      nutrients: { energyKcal: 600, proteinG: 25, fatG: 20, carbohydrateG: 80, sodiumMEq: 0, potassiumMEq: 0, magnesiumMg: 0, phosphorusMg: 0, waterMl: 300, insulinU: 0 },
+      memo: "動作確認用サンプル", source: "内部サンプル", sourceStatus: "sample", updatedAt: "2026-04-19" }
+  ],
+  enteral: [
+    { id: "enteral-sample-a", name: "経腸栄養サンプルA", kana: "けいちょうえいようさんぷるa", aliases: [], category: "サンプル", tags: ["サンプル"], favorite: false, baseAmount: 100, baseUnit: "mL",
+      nutrients: { energyKcal: 100, proteinG: 4, fatG: 3, carbohydrateG: 15, sodiumMEq: 0, potassiumMEq: 0, magnesiumMg: 0, phosphorusMg: 0, waterMl: 85, insulinU: 0 },
+      memo: "動作確認用サンプル", source: "内部サンプル", sourceStatus: "sample", updatedAt: "2026-04-19" }
+  ],
+  ons: [
+    { id: "ons-sample-a", name: "ONSサンプルA", kana: "おーえぬえすさんぷるa", aliases: [], category: "サンプル", tags: ["サンプル"], favorite: false, baseAmount: 1, baseUnit: "本",
+      nutrients: { energyKcal: 200, proteinG: 10, fatG: 6, carbohydrateG: 30, sodiumMEq: 0, potassiumMEq: 0, magnesiumMg: 0, phosphorusMg: 0, waterMl: 125, insulinU: 0 },
+      memo: "動作確認用サンプル", source: "内部サンプル", sourceStatus: "sample", updatedAt: "2026-04-19" }
+  ]
+};
+
+/* ============================================================
+   定数・ユーティリティ
+   ============================================================ */
+const TYPES = ['iv', 'meal', 'enteral', 'ons'];
+const TYPE_LABEL = { iv: '点滴', meal: '食事', enteral: '経腸栄養', ons: 'ONS' };
+const NUTRIENT_KEYS = ['energyKcal','proteinG','fatG','carbohydrateG','sodiumMEq','potassiumMEq','magnesiumMg','phosphorusMg','waterMl','insulinU'];
+const NUTRIENT_LABEL = {
+  energyKcal: 'エネルギー', proteinG: 'たんぱく質', fatG: '脂質', carbohydrateG: '糖質',
+  sodiumMEq: 'Na', potassiumMEq: 'K', magnesiumMg: 'Mg', phosphorusMg: 'P',
+  waterMl: '水分', insulinU: 'インスリン'
+};
+const NUTRIENT_UNIT = {
+  energyKcal: 'kcal', proteinG: 'g', fatG: 'g', carbohydrateG: 'g',
+  sodiumMEq: 'mEq', potassiumMEq: 'mEq', magnesiumMg: 'mg', phosphorusMg: 'mg',
+  waterMl: 'mL', insulinU: 'U'
+};
+const LS_KEY = 'nutrition-calc-v1';
+
+function uid(prefix = 'r') {
+  return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+function todayStr() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+function isFiniteNumber(x) {
+  return typeof x === 'number' && Number.isFinite(x);
+}
+function safeNumber(v) {
+  // 入力テキストを数値化。空・不正は null
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v).trim();
+  if (s === '') return null;
+  // 全角数字対応
+  const n = Number(s.replace(/[０-９．－]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)));
+  return Number.isFinite(n) ? n : null;
+}
+function formatInt(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  return String(Math.round(n));
+}
+function formatDec1(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  return (Math.round(n * 10) / 10).toFixed(1);
+}
+function formatNutrient(key, n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  if (key === 'energyKcal') return formatInt(n);
+  return formatDec1(n);
+}
+
+/* ============================================================
+   かな・検索正規化
+   ============================================================ */
+function katakanaToHiragana(str) {
+  return str.replace(/[\u30A1-\u30F6]/g, (m) =>
+    String.fromCharCode(m.charCodeAt(0) - 0x60)
+  );
+}
+function zenkakuAsciiToHankaku(str) {
+  // 全角 ASCII (！ to ～) を半角に
+  return str.replace(/[\uFF01-\uFF5E]/g, (m) =>
+    String.fromCharCode(m.charCodeAt(0) - 0xFEE0)
+  ).replace(/\u3000/g, ' ');
+}
+function normalizeSearch(str) {
+  if (!str) return '';
+  let s = String(str);
+  s = zenkakuAsciiToHankaku(s);
+  s = katakanaToHiragana(s);
+  s = s.toLowerCase();
+  // 空白除去
+  s = s.replace(/\s+/g, '');
+  return s;
+}
+function buildSearchText(item) {
+  // 検索対象: 名前 + ふりがな + 別名 + 分類 + タグ
+  const parts = [
+    item.name || '',
+    item.kana || '',
+    ...(item.aliases || []),
+    item.category || '',
+    ...(item.tags || [])
+  ];
+  return parts.map(normalizeSearch).join('|');
+}
+
+/* ============================================================
+   アプリ状態
+   ============================================================ */
+const state = {
+  masters: { iv: [], meal: [], enteral: [], ons: [] },
+  current: {
+    id: null, // 保存済みなら id を持つ
+    date: todayStr(),
+    caseName: '',
+    rows: { iv: [], meal: [], enteral: [], ons: [] }
+  },
+  saved: {},      // { id: record }
+  recentIds: { iv: [], meal: [], enteral: [], ons: [] }, // 最近使用の id 配列（新しい順、最大 12）
+  activeMasterType: 'iv',
+  editingMasterId: null, // 編集中のマスタ id (null = 新規追加)
+  pendingAction: null    // { type: 'delete-row', onConfirm } 等
+};
+
+/* ============================================================
+   永続化（localStorage）
+   ============================================================ */
+function persistAll() {
+  try {
+    const data = {
+      masters: state.masters,
+      current: state.current,
+      saved: state.saved,
+      recentIds: state.recentIds
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('localStorage 保存失敗', e);
+  }
+}
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn('localStorage 読込失敗', e);
+    return null;
+  }
+}
+
+/* ============================================================
+   マスタ読み込み（fetch → fallback → localStorage override）
+   ============================================================ */
+async function loadMasters() {
+  // まず localStorage を確認
+  const persisted = loadPersisted();
+  if (persisted && persisted.masters && TYPES.every((t) => Array.isArray(persisted.masters[t]) && persisted.masters[t].length > 0)) {
+    // 保存されたマスタを使用
+    state.masters = persisted.masters;
+    if (persisted.saved) state.saved = persisted.saved;
+    if (persisted.recentIds) state.recentIds = persisted.recentIds;
+    if (persisted.current) state.current = persisted.current;
+    return { from: 'localStorage' };
+  }
+  // 次に JSON fetch を試す
+  const fileMap = {
+    iv: './data/iv-master.json',
+    meal: './data/meal-master.json',
+    enteral: './data/enteral-master.json',
+    ons: './data/ons-master.json'
+  };
+  let fetched = { iv: null, meal: null, enteral: null, ons: null };
+  let allOk = true;
+  for (const t of TYPES) {
+    try {
+      const res = await fetch(fileMap[t], { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      if (!Array.isArray(j)) throw new Error('JSON is not array');
+      fetched[t] = j;
+    } catch (e) {
+      console.warn(`マスタ読み込み失敗: ${t}`, e);
+      allOk = false;
+      fetched[t] = null;
+    }
+  }
+  for (const t of TYPES) {
+    state.masters[t] = fetched[t] || FALLBACK_MASTERS[t].slice();
+  }
+  // 初回起動時は保存済み記録があれば引き継ぐ
+  if (persisted) {
+    if (persisted.saved) state.saved = persisted.saved;
+    if (persisted.recentIds) state.recentIds = persisted.recentIds;
+    if (persisted.current) state.current = persisted.current;
+  }
+  persistAll();
+  return { from: allOk ? 'fetch' : 'fallback' };
+}
+
+/* ============================================================
+   マスタ操作
+   ============================================================ */
+function findItem(type, id) {
+  return state.masters[type].find((x) => x.id === id) || null;
+}
+function searchMaster(type, query, maxResults = 8) {
+  const all = state.masters[type] || [];
+  const q = normalizeSearch(query);
+  const recent = state.recentIds[type] || [];
+  let candidates = all.map((item) => {
+    const hay = buildSearchText(item);
+    if (q === '') return { item, score: 0, rank: 'all' };
+    if (!hay.includes(q)) return null;
+    // ランク: お気に入り > 最近使用 > 前方一致 > 部分一致
+    let rank = 4, score = 0;
+    // 正規化された名前・かなでの前方一致判定
+    const nName = normalizeSearch(item.name);
+    const nKana = normalizeSearch(item.kana);
+    const nAliases = (item.aliases || []).map(normalizeSearch);
+    const isPrefix = nName.startsWith(q) || nKana.startsWith(q) || nAliases.some((a) => a.startsWith(q));
+    if (isPrefix) { rank = 3; score = 2; } else { rank = 4; score = 1; }
+    if (recent.includes(item.id)) { rank = 2; score += 3; }
+    if (item.favorite) { rank = 1; score += 5; }
+    return { item, score, rank };
+  }).filter((x) => x !== null);
+  // q が空の場合は全件対象。その場合もお気に入り・最近を上に
+  if (q === '') {
+    candidates = all.map((item) => {
+      let rank = 4, score = 0;
+      if (recent.includes(item.id)) { rank = 2; score += 3 - Math.min(recent.indexOf(item.id), 2); }
+      if (item.favorite) { rank = 1; score += 5; }
+      return { item, score, rank };
+    });
+  }
+  candidates.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    if (b.score !== a.score) return b.score - a.score;
+    // 同スコアなら名前順
+    return (a.item.name || '').localeCompare(b.item.name || '', 'ja');
+  });
+  return candidates.slice(0, maxResults).map((c) => ({ ...c.item, _matchRank: c.rank }));
+}
+function pushRecent(type, id) {
+  if (!id) return;
+  let arr = state.recentIds[type] || [];
+  arr = arr.filter((x) => x !== id);
+  arr.unshift(id);
+  if (arr.length > 12) arr = arr.slice(0, 12);
+  state.recentIds[type] = arr;
+  persistAll();
+}
+function toggleFavorite(type, id) {
+  const it = findItem(type, id);
+  if (!it) return;
+  it.favorite = !it.favorite;
+  it.updatedAt = todayStr();
+  persistAll();
+}
+
+/* ============================================================
+   新規行作成・行管理
+   ============================================================ */
+function newRow(type) {
+  const base = { id: uid('row'), itemId: null, memo: '' };
+  if (type === 'iv') {
+    return { ...base, quantity: null, _insulinRow: false };
+  } else if (type === 'meal') {
+    return { ...base, mealCount: null, ratio: null }; // 提供食数、摂取割合(0-10)
+  } else if (type === 'enteral') {
+    return { ...base, amount: null, implRatio: 10 }; // 投与量 mL, 実施割合(0-10, 初期 10)
+  } else if (type === 'ons') {
+    return { ...base, quantity: null, ratio: null };
+  }
+  return base;
+}
+function ensureLastEmptyRow(type) {
+  const rows = state.current.rows[type];
+  if (rows.length === 0 || isRowFilled(type, rows[rows.length - 1])) {
+    rows.push(newRow(type));
+  }
+}
+function isRowEmpty(type, row) {
+  // 「完全に空」= 製品未選択、数量も未入力
+  if (row.itemId) return false;
+  if (type === 'iv' && safeNumber(row.quantity) !== null) return false;
+  if (type === 'meal' && (safeNumber(row.mealCount) !== null || safeNumber(row.ratio) !== null)) return false;
+  if (type === 'enteral' && safeNumber(row.amount) !== null) return false;
+  if (type === 'ons' && (safeNumber(row.quantity) !== null || safeNumber(row.ratio) !== null)) return false;
+  return true;
+}
+function isRowFilled(type, row) {
+  // 「何らかの意味を持つ行」= 製品が選択されているか、数量が入力されている
+  return !isRowEmpty(type, row);
+}
+function isRowCalculable(type, row) {
+  // 計算対象か = 必要情報が揃っているか
+  if (!row.itemId) return false;
+  if (type === 'iv') return safeNumber(row.quantity) !== null;
+  if (type === 'meal') return safeNumber(row.mealCount) !== null;
+  if (type === 'enteral') return safeNumber(row.amount) !== null;
+  if (type === 'ons') return safeNumber(row.quantity) !== null;
+  return false;
+}
+
+/* ============================================================
+   計算
+   ============================================================ */
+function emptyNutrients() {
+  const o = {};
+  for (const k of NUTRIENT_KEYS) o[k] = 0;
+  return o;
+}
+function calcRowNutrients(type, row) {
+  // 戻り値: { nutrients: {...}, hasNull: bool, calculable: bool }
+  const out = { nutrients: emptyNutrients(), hasNull: false, calculable: false };
+  if (!isRowCalculable(type, row)) return out;
+  const item = findItem(type, row.itemId);
+  if (!item) return out;
+  out.calculable = true;
+
+  const base = item.baseAmount;
+  if (base === null || !isFiniteNumber(base) || base === 0) {
+    out.hasNull = true;
+    return out;
+  }
+  let factor = 0;
+  if (type === 'iv') {
+    const q = safeNumber(row.quantity);
+    if (q === null) return out;
+    factor = q / base;
+  } else if (type === 'meal') {
+    const n = safeNumber(row.mealCount);
+    const r = safeNumber(row.ratio);
+    const rr = (r === null) ? 10 : r; // 摂取割合未入力 → 未計算
+    if (n === null) return out;
+    if (r === null) {
+      // 割合未入力時は暫定で計算しない方が安全
+      // ただし「数量入力済み」とするため、割合未入力時は仮に null 扱いで ratio=0
+      out.hasNull = true;
+      return out;
+    }
+    factor = (n / base) * (rr / 10);
+  } else if (type === 'enteral') {
+    const a = safeNumber(row.amount);
+    const r = safeNumber(row.implRatio);
+    if (a === null) return out;
+    const rr = (r === null) ? 10 : r;
+    factor = (a / base) * (rr / 10);
+  } else if (type === 'ons') {
+    const q = safeNumber(row.quantity);
+    const r = safeNumber(row.ratio);
+    if (q === null) return out;
+    if (r === null) {
+      out.hasNull = true;
+      return out;
+    }
+    factor = (q / base) * (r / 10);
+  }
+  for (const k of NUTRIENT_KEYS) {
+    const v = item.nutrients ? item.nutrients[k] : null;
+    if (v === null || v === undefined || !isFiniteNumber(v)) {
+      out.hasNull = true;
+      out.nutrients[k] = 0;
+    } else {
+      if (type !== 'iv' && k === 'insulinU') {
+        // 点滴以外はインスリン集計しない
+        out.nutrients[k] = 0;
+      } else if (type === 'iv' && k === 'energyKcal' && item.nutrients.insulinU !== null && item.nutrients.insulinU > 0 && item.nutrients.energyKcal === 0) {
+        // インスリン製剤はエネルギー計算しない（既に 0 なので結果は同じだが明示）
+        out.nutrients[k] = 0;
+      } else {
+        out.nutrients[k] = v * factor;
+      }
+    }
+  }
+  return out;
+}
+function calcSectionTotal(type) {
+  const total = emptyNutrients();
+  let anyNull = false, anyCalc = false;
+  for (const row of state.current.rows[type]) {
+    if (!isRowCalculable(type, row)) {
+      if (isRowFilled(type, row)) anyNull = true; // 入力途中で未完了
+      continue;
+    }
+    const r = calcRowNutrients(type, row);
+    if (r.hasNull) anyNull = true;
+    if (r.calculable) anyCalc = true;
+    for (const k of NUTRIENT_KEYS) total[k] += r.nutrients[k];
+  }
+  return { nutrients: total, hasNull: anyNull, anyCalc };
+}
+function calcGrandTotal() {
+  const grand = emptyNutrients();
+  const perType = {};
+  let anyNull = false;
+  for (const t of TYPES) {
+    const s = calcSectionTotal(t);
+    perType[t] = s;
+    if (s.hasNull) anyNull = true;
+    for (const k of NUTRIENT_KEYS) {
+      if (k === 'insulinU' && t !== 'iv') continue; // 合計は点滴のみ反映
+      grand[k] += s.nutrients[k];
+    }
+  }
+  // 点滴糖質インスリン比（点滴のみから）
+  const ivCarb = perType.iv.nutrients.carbohydrateG;
+  const ivInsulin = perType.iv.nutrients.insulinU;
+  let ratio = null;
+  if (ivInsulin && ivInsulin > 0) {
+    ratio = ivCarb / ivInsulin;
+  }
+  return { grand, perType, anyNull, ivRatio: ratio };
+}
+
+/* ============================================================
+   DOM ヘルパ
+   ============================================================ */
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'style') node.setAttribute('style', v);
+    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === 'dataset') Object.entries(v).forEach(([dk, dv]) => node.dataset[dk] = dv);
+    else if (v === false || v === null || v === undefined) { /* skip */ }
+    else if (v === true) node.setAttribute(k, '');
+    else node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) {
+    if (c === null || c === undefined || c === false) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return Array.from(document.querySelectorAll(sel)); }
+
+/* ============================================================
+   コンボボックス（候補リスト）
+   ============================================================ */
+function createCombobox(type, row, onSelect) {
+  const wrap = el('div', { class: 'combobox-wrap' });
+  const inputWrap = el('div', { class: 'cb-input-wrap' });
+  const input = el('input', {
+    type: 'search',
+    class: 'cb-input',
+    placeholder: `${TYPE_LABEL[type]}名を入力（ふりがなOK）`,
+    autocomplete: 'off',
+    autocorrect: 'off',
+    autocapitalize: 'off',
+    spellcheck: 'false',
+    'aria-label': TYPE_LABEL[type] + '名'
+  });
+  const clearBtn = el('button', { type: 'button', class: 'cb-clear', 'aria-label': 'クリア' }, '✕');
+  clearBtn.style.display = 'none';
+  const list = el('div', { class: 'cb-list', role: 'listbox' });
+  inputWrap.appendChild(input);
+  inputWrap.appendChild(clearBtn);
+  wrap.appendChild(inputWrap);
+  wrap.appendChild(list);
+
+  // 初期値（既に選択済み）
+  if (row.itemId) {
+    const it = findItem(type, row.itemId);
+    if (it) {
+      input.value = it.name;
+      clearBtn.style.display = 'inline-flex';
+    }
+  }
+
+  function render(query) {
+    list.innerHTML = '';
+    const results = searchMaster(type, query, 8);
+    if (results.length === 0) {
+      list.appendChild(el('div', { class: 'cb-empty' }, query ? '該当なし。新規はマスタ管理から追加してください。' : '候補がありません'));
+      return;
+    }
+    for (const item of results) {
+      const badges = [];
+      if (item.favorite) badges.push(el('span', { class: 'cb-badge badge-fav' }, '★'));
+      else if ((state.recentIds[type] || []).includes(item.id)) badges.push(el('span', { class: 'cb-badge badge-recent' }, '最近'));
+      if (item.sourceStatus === 'sample') badges.push(el('span', { class: 'cb-badge badge-sample' }, 'サンプル'));
+      if (item.sourceStatus === 'not_entered') badges.push(el('span', { class: 'cb-badge badge-not_entered' }, '未入力'));
+      if (item.sourceStatus === 'unverified') badges.push(el('span', { class: 'cb-badge badge-unverified' }, '未確認'));
+      if (item.sourceStatus === 'verified') badges.push(el('span', { class: 'cb-badge badge-verified' }, '確認済'));
+      const subParts = [];
+      if (item.category) subParts.push(item.category);
+      if (item.baseAmount !== null && item.baseUnit) subParts.push(`基準 ${item.baseAmount}${item.baseUnit}`);
+      else if (item.baseUnit) subParts.push(`単位 ${item.baseUnit}`);
+      const itemEl = el('div', {
+        class: 'cb-item',
+        role: 'option',
+        dataset: { id: item.id }
+      },
+        el('div', { class: 'cb-main' },
+          el('div', { class: 'cb-name' }, item.name),
+          subParts.length ? el('div', { class: 'cb-sub' }, subParts.join(' / ')) : null
+        ),
+        ...badges
+      );
+      // iOS Safari: mousedown で input の blur を阻止してから選択
+      itemEl.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+      });
+      itemEl.addEventListener('click', () => {
+        input.value = item.name;
+        clearBtn.style.display = 'inline-flex';
+        closeList();
+        pushRecent(type, item.id);
+        if (onSelect) onSelect(item);
+      });
+      list.appendChild(itemEl);
+    }
+  }
+
+  function openList() {
+    render(input.value);
+    list.classList.add('open');
+  }
+  function closeList() {
+    list.classList.remove('open');
+  }
+
+  input.addEventListener('focus', () => {
+    openList();
+  });
+  input.addEventListener('input', () => {
+    clearBtn.style.display = input.value ? 'inline-flex' : 'none';
+    openList();
+    // 入力テキスト変更時、既存選択を解除
+    if (row.itemId) {
+      const it = findItem(type, row.itemId);
+      if (!it || it.name !== input.value) {
+        row.itemId = null;
+        if (onSelect) onSelect(null, input.value);
+      }
+    }
+  });
+  input.addEventListener('blur', () => {
+    // タップ遅延のために遅らせて閉じる
+    setTimeout(closeList, 180);
+  });
+  clearBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    input.value = '';
+    clearBtn.style.display = 'none';
+    row.itemId = null;
+    if (onSelect) onSelect(null, '');
+    input.focus();
+    openList();
+  });
+
+  return { wrap, input };
+}
+
+/* ============================================================
+   行 DOM 生成
+   ============================================================ */
+function renderRowSubtotal(type, row, subtotalEl) {
+  subtotalEl.classList.remove('warn');
+  if (!row.itemId && !isRowFilled(type, row)) {
+    subtotalEl.textContent = '（空行）';
+    return;
+  }
+  if (!row.itemId) {
+    subtotalEl.textContent = '製品未選択のため計算対象外';
+    subtotalEl.classList.add('warn');
+    return;
+  }
+  const r = calcRowNutrients(type, row);
+  if (!r.calculable) {
+    subtotalEl.textContent = '数量未入力';
+    subtotalEl.classList.add('warn');
+    return;
+  }
+  const n = r.nutrients;
+  const bits = [];
+  bits.push(`${formatInt(n.energyKcal)} kcal`);
+  bits.push(`糖${formatDec1(n.carbohydrateG)}g`);
+  bits.push(`蛋${formatDec1(n.proteinG)}g`);
+  bits.push(`脂${formatDec1(n.fatG)}g`);
+  bits.push(`水${formatDec1(n.waterMl)}mL`);
+  if (type === 'iv' && n.insulinU > 0) bits.push(`Ins ${formatDec1(n.insulinU)}U`);
+  subtotalEl.innerHTML = bits.map((b) => `<span class="item">${b}</span>`).join('');
+  if (r.hasNull) {
+    subtotalEl.classList.add('warn');
+    subtotalEl.innerHTML += ' <span class="item">⚠ 未入力項目あり</span>';
+  }
+}
+
+function buildRowEl(type, row) {
+  const rowEl = el('div', { class: 'row', dataset: { rowId: row.id } });
+  const topWrap = el('div', { class: 'row-top' });
+  const cb = createCombobox(type, row, (selectedItem, rawText) => {
+    // 選択・解除時の挙動
+    const wasEmpty = !row.itemId;
+    row.itemId = selectedItem ? selectedItem.id : null;
+    // 数量フィールドへフォーカス
+    if (selectedItem) {
+      // 空行だったら次の空行を追加
+      ensureLastEmptyRow(type);
+      renderSection(type); // 構造変更なので再描画
+      // 同じ row の数量入力欄にフォーカス
+      setTimeout(() => {
+        const el2 = document.querySelector(`[data-row-id="${row.id}"] .qty-input`);
+        if (el2) el2.focus();
+      }, 50);
+    } else {
+      persistAll();
+      updateRow(type, row);
+      updateTotals();
+    }
+  });
+  topWrap.appendChild(cb.wrap);
+  rowEl.appendChild(topWrap);
+
+  // 数量入力
+  const qtyWrap = el('div', { class: 'row-qty' });
+  if (type === 'iv') {
+    qtyWrap.classList.add('single');
+    const field = el('div', { class: 'field' });
+    const qtyInput = el('input', {
+      type: 'number', class: 'numeric qty-input has-unit',
+      inputmode: 'decimal', step: 'any', min: '0',
+      'aria-label': '数量'
+    });
+    if (row.quantity !== null && row.quantity !== undefined) qtyInput.value = row.quantity;
+    const unit = el('span', { class: 'unit' }, row.itemId ? (findItem(type, row.itemId)?.baseUnit || 'mL') : 'mL');
+    qtyInput.addEventListener('input', () => {
+      row.quantity = safeNumber(qtyInput.value);
+      persistAll();
+      updateRow(type, row);
+      updateTotals();
+      // 空行自動生成
+      if (isRowFilled(type, row)) {
+        const rows = state.current.rows[type];
+        if (rows[rows.length - 1] === row) {
+          ensureLastEmptyRow(type);
+          renderSection(type);
+        }
+      }
+    });
+    field.appendChild(qtyInput);
+    field.appendChild(unit);
+    const wrapF = el('div', null,
+      el('label', null, '数量'),
+      field
+    );
+    qtyWrap.appendChild(wrapF);
+  } else if (type === 'meal') {
+    // 提供食数 & 摂取割合
+    const f1 = el('div', { class: 'field' });
+    const n1 = el('input', { type: 'number', class: 'numeric qty-input has-unit', inputmode: 'decimal', step: 'any', min: '0', 'aria-label': '提供食数' });
+    if (row.mealCount !== null && row.mealCount !== undefined) n1.value = row.mealCount;
+    const u1 = el('span', { class: 'unit' }, '食');
+    f1.appendChild(n1); f1.appendChild(u1);
+    const f2 = el('div', { class: 'field' });
+    const n2 = el('input', { type: 'number', class: 'numeric has-unit', inputmode: 'decimal', step: '0.5', min: '0', max: '10', 'aria-label': '摂取割合(0-10)' });
+    if (row.ratio !== null && row.ratio !== undefined) n2.value = row.ratio;
+    const u2 = el('span', { class: 'unit' }, '/10');
+    f2.appendChild(n2); f2.appendChild(u2);
+    n1.addEventListener('input', () => {
+      row.mealCount = safeNumber(n1.value);
+      persistAll(); updateRow(type, row); updateTotals();
+      if (isRowFilled(type, row)) {
+        const rows = state.current.rows[type];
+        if (rows[rows.length - 1] === row) { ensureLastEmptyRow(type); renderSection(type); }
+      }
+    });
+    n2.addEventListener('input', () => {
+      const v = safeNumber(n2.value);
+      row.ratio = v;
+      persistAll(); updateRow(type, row); updateTotals();
+    });
+    qtyWrap.appendChild(el('div', null, el('label', null, '提供食数'), f1));
+    qtyWrap.appendChild(el('div', null, el('label', null, '摂取割合 (0-10)'), f2));
+  } else if (type === 'enteral') {
+    const f1 = el('div', { class: 'field' });
+    const n1 = el('input', { type: 'number', class: 'numeric qty-input has-unit', inputmode: 'decimal', step: 'any', min: '0', 'aria-label': '投与量' });
+    if (row.amount !== null && row.amount !== undefined) n1.value = row.amount;
+    const u1 = el('span', { class: 'unit' }, row.itemId ? (findItem(type, row.itemId)?.baseUnit || 'mL') : 'mL');
+    f1.appendChild(n1); f1.appendChild(u1);
+    const f2 = el('div', { class: 'field' });
+    const n2 = el('input', { type: 'number', class: 'numeric has-unit', inputmode: 'decimal', step: '0.5', min: '0', max: '10', 'aria-label': '実施割合(0-10)' });
+    if (row.implRatio !== null && row.implRatio !== undefined) n2.value = row.implRatio;
+    const u2 = el('span', { class: 'unit' }, '/10');
+    f2.appendChild(n2); f2.appendChild(u2);
+    n1.addEventListener('input', () => {
+      row.amount = safeNumber(n1.value);
+      persistAll(); updateRow(type, row); updateTotals();
+      if (isRowFilled(type, row)) {
+        const rows = state.current.rows[type];
+        if (rows[rows.length - 1] === row) { ensureLastEmptyRow(type); renderSection(type); }
+      }
+    });
+    n2.addEventListener('input', () => {
+      const v = safeNumber(n2.value);
+      row.implRatio = (v === null ? null : v);
+      persistAll(); updateRow(type, row); updateTotals();
+    });
+    qtyWrap.appendChild(el('div', null, el('label', null, '投与量'), f1));
+    qtyWrap.appendChild(el('div', null, el('label', null, '実施割合 (0-10)'), f2));
+  } else if (type === 'ons') {
+    const f1 = el('div', { class: 'field' });
+    const n1 = el('input', { type: 'number', class: 'numeric qty-input has-unit', inputmode: 'decimal', step: 'any', min: '0', 'aria-label': '数量' });
+    if (row.quantity !== null && row.quantity !== undefined) n1.value = row.quantity;
+    const u1 = el('span', { class: 'unit' }, row.itemId ? (findItem(type, row.itemId)?.baseUnit || '本') : '本');
+    f1.appendChild(n1); f1.appendChild(u1);
+    const f2 = el('div', { class: 'field' });
+    const n2 = el('input', { type: 'number', class: 'numeric has-unit', inputmode: 'decimal', step: '0.5', min: '0', max: '10', 'aria-label': '摂取割合(0-10)' });
+    if (row.ratio !== null && row.ratio !== undefined) n2.value = row.ratio;
+    const u2 = el('span', { class: 'unit' }, '/10');
+    f2.appendChild(n2); f2.appendChild(u2);
+    n1.addEventListener('input', () => {
+      row.quantity = safeNumber(n1.value);
+      persistAll(); updateRow(type, row); updateTotals();
+      if (isRowFilled(type, row)) {
+        const rows = state.current.rows[type];
+        if (rows[rows.length - 1] === row) { ensureLastEmptyRow(type); renderSection(type); }
+      }
+    });
+    n2.addEventListener('input', () => {
+      row.ratio = safeNumber(n2.value);
+      persistAll(); updateRow(type, row); updateTotals();
+    });
+    qtyWrap.appendChild(el('div', null, el('label', null, '数量'), f1));
+    qtyWrap.appendChild(el('div', null, el('label', null, '摂取割合 (0-10)'), f2));
+  }
+  rowEl.appendChild(qtyWrap);
+
+  // メモ
+  const memoWrap = el('div', { class: 'row-memo' });
+  const memoInput = el('input', { type: 'text', placeholder: 'メモ（任意）', autocomplete: 'off', maxlength: '100' });
+  if (row.memo) memoInput.value = row.memo;
+  memoInput.addEventListener('input', () => {
+    row.memo = memoInput.value;
+    persistAll();
+  });
+  memoWrap.appendChild(memoInput);
+  rowEl.appendChild(memoWrap);
+
+  // 小計
+  const subtotalEl = el('div', { class: 'row-subtotal' });
+  rowEl.appendChild(subtotalEl);
+  renderRowSubtotal(type, row, subtotalEl);
+
+  // 操作
+  const actions = el('div', { class: 'row-actions' });
+  const dupBtn = el('button', { type: 'button', class: 'ghost' }, '複製');
+  const delBtn = el('button', { type: 'button', class: 'danger' }, '削除');
+  dupBtn.addEventListener('click', () => {
+    const idx = state.current.rows[type].indexOf(row);
+    if (idx < 0) return;
+    const clone = { ...row, id: uid('row') };
+    state.current.rows[type].splice(idx + 1, 0, clone);
+    ensureLastEmptyRow(type);
+    persistAll();
+    renderSection(type);
+    updateTotals();
+    toast('行を複製しました');
+  });
+  delBtn.addEventListener('click', () => {
+    confirmDialog('この行を削除しますか？', () => {
+      state.current.rows[type] = state.current.rows[type].filter((r) => r.id !== row.id);
+      ensureLastEmptyRow(type);
+      persistAll();
+      renderSection(type);
+      updateTotals();
+      toast('行を削除しました');
+    });
+  });
+  actions.appendChild(dupBtn);
+  actions.appendChild(delBtn);
+  rowEl.appendChild(actions);
+
+  // 空行マーキング（視覚用）
+  if (!isRowFilled(type, row)) rowEl.classList.add('empty');
+  return { rowEl, subtotalEl };
+}
+function updateRow(type, row) {
+  // 該当行の小計表示のみ更新（構造は変えない）
+  const rowEl = document.querySelector(`[data-row-id="${row.id}"]`);
+  if (!rowEl) return;
+  const sub = rowEl.querySelector('.row-subtotal');
+  if (sub) renderRowSubtotal(type, row, sub);
+  // 空・非空の切替え反映
+  if (isRowFilled(type, row)) rowEl.classList.remove('empty');
+  else rowEl.classList.add('empty');
+  // 単位表示更新（製品変更時）
+  const unitEls = rowEl.querySelectorAll('.unit');
+  if (unitEls.length > 0 && row.itemId) {
+    const item = findItem(type, row.itemId);
+    if (item && item.baseUnit) {
+      if (type === 'iv' || type === 'enteral' || type === 'ons') {
+        unitEls[0].textContent = item.baseUnit;
+      }
+    }
+  }
+}
+function renderSection(type) {
+  const container = $(`#rows-${type}`);
+  if (!container) return;
+  container.innerHTML = '';
+  ensureLastEmptyRow(type);
+  for (const row of state.current.rows[type]) {
+    const { rowEl } = buildRowEl(type, row);
+    container.appendChild(rowEl);
+  }
+}
+
+/* ============================================================
+   合計表示
+   ============================================================ */
+function renderTotalsGrid(targetEl, nutrients, showInsulin = false) {
+  targetEl.innerHTML = '';
+  const keys = ['energyKcal','proteinG','fatG','carbohydrateG','sodiumMEq','potassiumMEq','magnesiumMg','phosphorusMg','waterMl'];
+  for (const k of keys) {
+    const cell = el('div', { class: 'cell' + (targetEl.id === 'total-grand' ? ' total-grand' : '') },
+      el('span', { class: 'label' }, NUTRIENT_LABEL[k]),
+      el('span', null,
+        el('span', { class: 'val' }, formatNutrient(k, nutrients[k])),
+        el('span', { class: 'unit' }, ' ' + NUTRIENT_UNIT[k])
+      )
+    );
+    targetEl.appendChild(cell);
+  }
+  if (showInsulin) {
+    const cell = el('div', { class: 'cell' },
+      el('span', { class: 'label' }, '混注インスリン'),
+      el('span', null,
+        el('span', { class: 'val' }, formatDec1(nutrients.insulinU)),
+        el('span', { class: 'unit' }, ' U')
+      )
+    );
+    targetEl.appendChild(cell);
+  }
+}
+function updateTotals() {
+  const { grand, perType, anyNull, ivRatio } = calcGrandTotal();
+  // 各小計
+  renderTotalsGrid($('#total-iv'), perType.iv.nutrients, true);
+  // 点滴小計に比率セル追加
+  const ivRatioCell = el('div', { class: 'cell' },
+    el('span', { class: 'label' }, '点滴糖質/インスリン比'),
+    el('span', null,
+      el('span', { class: 'val' }, ivRatio === null ? '—' : formatDec1(ivRatio)),
+      el('span', { class: 'unit' }, ' g/U')
+    )
+  );
+  $('#total-iv').appendChild(ivRatioCell);
+  renderTotalsGrid($('#total-meal'), perType.meal.nutrients, false);
+  renderTotalsGrid($('#total-enteral'), perType.enteral.nutrients, false);
+  renderTotalsGrid($('#total-ons'), perType.ons.nutrients, false);
+  renderTotalsGrid($('#total-grand'), grand, true);
+
+  // ヘッダ小計
+  updateCardSubtotal('iv', perType.iv);
+  updateCardSubtotal('meal', perType.meal);
+  updateCardSubtotal('enteral', perType.enteral);
+  updateCardSubtotal('ons', perType.ons);
+
+  $('#totals-warn').textContent = anyNull ? '⚠ 未入力項目あり' : '';
+  $('#totals-warn').classList.toggle('warn', !!anyNull);
+
+  // 固定サマリー
+  $('#sum-kcal').textContent = formatInt(grand.energyKcal);
+  $('#sum-prot').textContent = formatDec1(grand.proteinG);
+  $('#sum-carb').textContent = formatDec1(grand.carbohydrateG);
+  $('#sum-water').textContent = formatDec1(grand.waterMl);
+  $('#sum-insulin').textContent = formatDec1(perType.iv.nutrients.insulinU);
+  $('#sum-ratio').textContent = ivRatio === null ? '—' : formatDec1(ivRatio);
+  $('#sum-notice').textContent = anyNull ? ' ⚠ 未入力項目あり' : '';
+}
+function updateCardSubtotal(type, sectionResult) {
+  const el2 = $(`#subtotal-${type}`);
+  if (!el2) return;
+  const n = sectionResult.nutrients;
+  if (!sectionResult.anyCalc) { el2.textContent = '—'; return; }
+  const parts = [
+    `<span class="kv"><strong>${formatInt(n.energyKcal)}</strong>kcal</span>`,
+    `<span class="kv">糖<strong>${formatDec1(n.carbohydrateG)}</strong>g</span>`,
+    `<span class="kv">水<strong>${formatDec1(n.waterMl)}</strong>mL</span>`
+  ];
+  if (type === 'iv') parts.push(`<span class="kv">Ins<strong>${formatDec1(n.insulinU)}</strong>U</span>`);
+  el2.innerHTML = parts.join(' ');
+}
+
+/* ============================================================
+   サマリーテキスト生成
+   ============================================================ */
+function buildSummaryText() {
+  const { grand, perType, anyNull, ivRatio } = calcGrandTotal();
+  const fmt = (n) => {
+    const q = [];
+    q.push(`エネルギー ${formatInt(n.energyKcal)} kcal`);
+    q.push(`たんぱく質 ${formatDec1(n.proteinG)} g`);
+    q.push(`脂質 ${formatDec1(n.fatG)} g`);
+    q.push(`糖質 ${formatDec1(n.carbohydrateG)} g`);
+    q.push(`Na ${formatDec1(n.sodiumMEq)} mEq`);
+    q.push(`K ${formatDec1(n.potassiumMEq)} mEq`);
+    q.push(`Mg ${formatDec1(n.magnesiumMg)} mg`);
+    q.push(`P ${formatDec1(n.phosphorusMg)} mg`);
+    q.push(`水分 ${formatDec1(n.waterMl)} mL`);
+    return q.join(' / ');
+  };
+  const lines = [];
+  lines.push('【栄養量計算サマリー】');
+  lines.push(`日付: ${state.current.date}`);
+  lines.push(`ケース名: ${state.current.caseName || '—'}`);
+  lines.push('');
+  lines.push(`点滴: ${fmt(perType.iv.nutrients)} / 混注インスリン ${formatDec1(perType.iv.nutrients.insulinU)} U / 点滴糖質インスリン比 ${ivRatio === null ? '—' : formatDec1(ivRatio)} g/U`);
+  lines.push(`食事: ${fmt(perType.meal.nutrients)}`);
+  lines.push(`経腸栄養: ${fmt(perType.enteral.nutrients)}`);
+  lines.push(`ONS: ${fmt(perType.ons.nutrients)}`);
+  lines.push(`合計: ${fmt(grand)}`);
+  if (anyNull) lines.push('');
+  if (anyNull) lines.push('※ 未入力項目あり（null 値を 0 として合計）');
+  lines.push('');
+  lines.push('注意: このツールは栄養量の計算補助です。治療・処方・投与判断は医療者が確認してください。');
+  return lines.join('\n');
+}
+
+/* ============================================================
+   保存・読み込み・記録管理
+   ============================================================ */
+function saveCurrent() {
+  const id = state.current.id || uid('rec');
+  const record = {
+    id,
+    date: state.current.date,
+    caseName: state.current.caseName,
+    rows: JSON.parse(JSON.stringify(state.current.rows)),
+    savedAt: new Date().toISOString()
+  };
+  state.saved[id] = record;
+  state.current.id = id;
+  persistAll();
+  renderSaveList();
+  toast('保存しました');
+}
+function loadRecord(id) {
+  const r = state.saved[id];
+  if (!r) return;
+  state.current.id = r.id;
+  state.current.date = r.date;
+  state.current.caseName = r.caseName || '';
+  state.current.rows = JSON.parse(JSON.stringify(r.rows));
+  for (const t of TYPES) {
+    if (!Array.isArray(state.current.rows[t])) state.current.rows[t] = [];
+    ensureLastEmptyRow(t);
+  }
+  $('#rec-date').value = state.current.date;
+  $('#rec-casename').value = state.current.caseName;
+  for (const t of TYPES) renderSection(t);
+  updateTotals();
+  persistAll();
+  toast('読み込みました');
+}
+function duplicateRecord(id) {
+  const r = state.saved[id];
+  if (!r) return;
+  const newId = uid('rec');
+  const dupName = (r.caseName || '') + '（複製）';
+  state.saved[newId] = { ...JSON.parse(JSON.stringify(r)), id: newId, caseName: dupName, savedAt: new Date().toISOString() };
+  persistAll();
+  renderSaveList();
+  toast('複製しました');
+}
+function deleteRecord(id) {
+  confirmDialog('この保存データを削除しますか？', () => {
+    delete state.saved[id];
+    if (state.current.id === id) state.current.id = null;
+    persistAll();
+    renderSaveList();
+    toast('削除しました');
+  });
+}
+function newRecord() {
+  state.current = {
+    id: null,
+    date: todayStr(),
+    caseName: '',
+    rows: { iv: [], meal: [], enteral: [], ons: [] }
+  };
+  for (const t of TYPES) ensureLastEmptyRow(t);
+  $('#rec-date').value = state.current.date;
+  $('#rec-casename').value = '';
+  for (const t of TYPES) renderSection(t);
+  updateTotals();
+  persistAll();
+  toast('新規作成');
+}
+function copyPreviousDay() {
+  // 前日に最も近い保存データを探す
+  const target = state.current.date;
+  const allRecords = Object.values(state.saved);
+  if (allRecords.length === 0) { toast('保存データがありません'); return; }
+  // 同じ日付で別 id、または直近過去日
+  const past = allRecords
+    .filter((r) => r.date <= target && r.id !== state.current.id)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.savedAt.localeCompare(a.savedAt));
+  const src = past[0] || allRecords.sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (!src) { toast('複製元がありません'); return; }
+  state.current.id = null;
+  state.current.rows = JSON.parse(JSON.stringify(src.rows));
+  for (const t of TYPES) {
+    if (!Array.isArray(state.current.rows[t])) state.current.rows[t] = [];
+    ensureLastEmptyRow(t);
+  }
+  for (const t of TYPES) renderSection(t);
+  updateTotals();
+  persistAll();
+  toast(`${src.date} のデータを複製`);
+}
+function renderSaveList() {
+  const list = $('#save-list');
+  list.innerHTML = '';
+  const arr = Object.values(state.saved).sort((a, b) => b.date.localeCompare(a.date) || b.savedAt.localeCompare(a.savedAt));
+  if (arr.length === 0) {
+    list.appendChild(el('div', { class: 'text-sm text-muted', style: 'padding:10px;text-align:center;' }, '保存データはまだありません'));
+    return;
+  }
+  for (const r of arr) {
+    const savedDate = (r.savedAt || '').slice(0, 16).replace('T', ' ');
+    const item = el('div', { class: 'sitem' },
+      el('div', { class: 'snm' },
+        el('div', { class: 'n' }, `${r.date}${r.caseName ? ' / ' + r.caseName : ''}`),
+        el('div', { class: 's' }, `保存 ${savedDate}`)
+      ),
+      el('div', { class: 'sbtns' },
+        el('button', { class: 'small', type: 'button', onclick: () => loadRecord(r.id) }, '読み込み'),
+        el('button', { class: 'small ghost', type: 'button', onclick: () => duplicateRecord(r.id) }, '複製'),
+        el('button', { class: 'small danger', type: 'button', onclick: () => deleteRecord(r.id) }, '削除')
+      )
+    );
+    list.appendChild(item);
+  }
+}
+function exportRecords() {
+  const data = { exportedAt: new Date().toISOString(), records: state.saved };
+  downloadJSON(data, `nutrition-records-${todayStr()}.json`);
+}
+function importRecords(fileText) {
+  try {
+    const data = JSON.parse(fileText);
+    let records = data.records || data;
+    if (Array.isArray(records)) {
+      const m = {};
+      for (const r of records) { if (r && r.id) m[r.id] = r; }
+      records = m;
+    }
+    if (typeof records !== 'object') throw new Error('不正なフォーマット');
+    Object.assign(state.saved, records);
+    persistAll();
+    renderSaveList();
+    toast('記録を読み込みました');
+  } catch (e) {
+    alert('記録の読み込みに失敗しました: ' + e.message);
+  }
+}
+
+/* ============================================================
+   マスタ管理 UI
+   ============================================================ */
+function renderMasterList() {
+  const container = $('#master-list');
+  container.innerHTML = '';
+  const t = state.activeMasterType;
+  const q = $('#master-search').value;
+  let items;
+  if (q) {
+    items = searchMaster(t, q, 999);
+  } else {
+    items = state.masters[t].slice().sort((a, b) => {
+      if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+      return (a.name || '').localeCompare(b.name || '', 'ja');
+    });
+  }
+  if (items.length === 0) {
+    container.appendChild(el('div', { class: 'text-sm text-muted', style: 'padding:10px;text-align:center;' }, '該当なし'));
+    return;
+  }
+  for (const it of items) {
+    const badges = [];
+    if (it.favorite) badges.push(el('span', { class: 'cb-badge badge-fav' }, '★'));
+    if (it.sourceStatus === 'sample') badges.push(el('span', { class: 'cb-badge badge-sample' }, 'サンプル'));
+    if (it.sourceStatus === 'not_entered') badges.push(el('span', { class: 'cb-badge badge-not_entered' }, '未入力'));
+    if (it.sourceStatus === 'unverified') badges.push(el('span', { class: 'cb-badge badge-unverified' }, '未確認'));
+    if (it.sourceStatus === 'verified') badges.push(el('span', { class: 'cb-badge badge-verified' }, '確認済'));
+    const sub = [];
+    if (it.category) sub.push(it.category);
+    if (it.baseAmount !== null) sub.push(`基準 ${it.baseAmount}${it.baseUnit || ''}`);
+    const mi = el('div', { class: 'mitem' },
+      el('div', { class: 'mname' },
+        el('div', { class: 'n' }, it.name, ' ', ...badges),
+        el('div', { class: 's' }, sub.join(' / '))
+      ),
+      el('div', { class: 'mbtns' },
+        el('button', { type: 'button', onclick: () => { toggleFavorite(t, it.id); renderMasterList(); } }, it.favorite ? '★' : '☆'),
+        el('button', { type: 'button', onclick: () => openMasterForm(it.id) }, '編集'),
+        el('button', { type: 'button', class: 'danger', onclick: () => {
+          confirmDialog(`「${it.name}」を削除しますか？`, () => {
+            state.masters[t] = state.masters[t].filter((x) => x.id !== it.id);
+            persistAll();
+            renderMasterList();
+            toast('削除しました');
+          });
+        } }, '削除')
+      )
+    );
+    container.appendChild(mi);
+  }
+}
+function openMasterForm(id) {
+  state.editingMasterId = id;
+  const t = state.activeMasterType;
+  let it;
+  if (id) {
+    it = findItem(t, id);
+    if (!it) return;
+    $('#master-form-title').textContent = `${TYPE_LABEL[t]}マスタ編集`;
+  } else {
+    it = {
+      id: '', name: '', kana: '', aliases: [], category: '', tags: [], favorite: false,
+      baseAmount: null, baseUnit: (t === 'meal' ? '食' : (t === 'ons' ? '本' : 'mL')),
+      nutrients: { energyKcal: null, proteinG: null, fatG: null, carbohydrateG: null, sodiumMEq: null, potassiumMEq: null, magnesiumMg: null, phosphorusMg: null, waterMl: null, insulinU: (t === 'iv' ? null : 0) },
+      memo: '', source: '', sourceStatus: 'unverified'
+    };
+    $('#master-form-title').textContent = `${TYPE_LABEL[t]}マスタ新規追加`;
+  }
+  $('#mf-name').value = it.name || '';
+  $('#mf-kana').value = it.kana || '';
+  $('#mf-aliases').value = (it.aliases || []).join(', ');
+  $('#mf-category').value = it.category || '';
+  $('#mf-tags').value = (it.tags || []).join(', ');
+  $('#mf-base').value = it.baseAmount === null || it.baseAmount === undefined ? '' : it.baseAmount;
+  $('#mf-unit').value = it.baseUnit || '';
+  for (const k of NUTRIENT_KEYS) {
+    const v = it.nutrients ? it.nutrients[k] : null;
+    $(`#mf-${k}`).value = (v === null || v === undefined) ? '' : v;
+  }
+  $('#mf-memo').value = it.memo || '';
+  $('#mf-source').value = it.source || '';
+  $('#mf-status').value = it.sourceStatus || 'unverified';
+  $('#mf-fav').checked = !!it.favorite;
+  $('#modal-master').classList.add('open');
+}
+function saveMasterForm() {
+  const t = state.activeMasterType;
+  const name = $('#mf-name').value.trim();
+  if (!name) { alert('名前は必須です'); return; }
+  const nutrients = {};
+  for (const k of NUTRIENT_KEYS) {
+    const raw = $(`#mf-${k}`).value;
+    nutrients[k] = (raw === '') ? null : safeNumber(raw);
+  }
+  const baseAmount = (() => {
+    const v = $('#mf-base').value;
+    return v === '' ? null : safeNumber(v);
+  })();
+  const baseUnit = $('#mf-unit').value.trim();
+  const aliases = $('#mf-aliases').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const tags = $('#mf-tags').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const payload = {
+    name,
+    kana: $('#mf-kana').value.trim(),
+    aliases,
+    category: $('#mf-category').value.trim(),
+    tags,
+    favorite: $('#mf-fav').checked,
+    baseAmount,
+    baseUnit,
+    nutrients,
+    memo: $('#mf-memo').value,
+    source: $('#mf-source').value.trim(),
+    sourceStatus: $('#mf-status').value,
+    updatedAt: todayStr()
+  };
+  if (state.editingMasterId) {
+    const idx = state.masters[t].findIndex((x) => x.id === state.editingMasterId);
+    if (idx >= 0) {
+      state.masters[t][idx] = { ...state.masters[t][idx], ...payload };
+    }
+  } else {
+    payload.id = uid(t);
+    state.masters[t].push(payload);
+  }
+  persistAll();
+  closeMasterForm();
+  renderMasterList();
+  // 既に行に登録済みの製品の表示を更新
+  for (const type of TYPES) renderSection(type);
+  updateTotals();
+  toast('マスタを保存しました');
+}
+function closeMasterForm() {
+  $('#modal-master').classList.remove('open');
+  state.editingMasterId = null;
+}
+function exportMasters() {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    masters: state.masters
+  };
+  downloadJSON(data, `nutrition-masters-${todayStr()}.json`);
+}
+function importMasters(fileText) {
+  try {
+    const data = JSON.parse(fileText);
+    let m;
+    if (data.masters) m = data.masters;
+    else if (Array.isArray(data)) { alert('配列単独形式は読み込めません。{"iv":[...], "meal":[...], "enteral":[...], "ons":[...]} 形式の JSON を使用してください。'); return; }
+    else m = data;
+    for (const t of TYPES) {
+      if (Array.isArray(m[t])) {
+        state.masters[t] = m[t].map((x) => normalizeMasterItem(t, x));
+      }
+    }
+    persistAll();
+    renderMasterList();
+    for (const type of TYPES) renderSection(type);
+    updateTotals();
+    toast('マスタを読み込みました');
+  } catch (e) {
+    alert('読み込みに失敗: ' + e.message);
+  }
+}
+function normalizeMasterItem(type, x) {
+  const n = x.nutrients || {};
+  const nutrients = {};
+  for (const k of NUTRIENT_KEYS) {
+    const v = n[k];
+    nutrients[k] = (v === null || v === undefined) ? null : (isFiniteNumber(Number(v)) ? Number(v) : null);
+  }
+  return {
+    id: x.id || uid(type),
+    name: String(x.name || ''),
+    kana: String(x.kana || ''),
+    aliases: Array.isArray(x.aliases) ? x.aliases.slice() : [],
+    category: String(x.category || ''),
+    tags: Array.isArray(x.tags) ? x.tags.slice() : [],
+    favorite: !!x.favorite,
+    baseAmount: (x.baseAmount === null || x.baseAmount === undefined) ? null : (isFiniteNumber(Number(x.baseAmount)) ? Number(x.baseAmount) : null),
+    baseUnit: String(x.baseUnit || ''),
+    nutrients,
+    memo: String(x.memo || ''),
+    source: String(x.source || ''),
+    sourceStatus: x.sourceStatus || 'unverified',
+    updatedAt: x.updatedAt || todayStr()
+  };
+}
+async function resetMastersToInitial() {
+  confirmDialog('マスタを初期状態（JSON ファイル）に戻しますか？ 端末内の編集は失われます。', async () => {
+    // localStorage のマスタ部分をクリアし、再 fetch
+    const persisted = loadPersisted() || {};
+    delete persisted.masters;
+    localStorage.setItem(LS_KEY, JSON.stringify(persisted));
+    state.masters = { iv: [], meal: [], enteral: [], ons: [] };
+    await loadMasters();
+    renderMasterList();
+    for (const type of TYPES) renderSection(type);
+    updateTotals();
+    toast('マスタを初期化しました');
+  });
+}
+
+/* ============================================================
+   モーダル・トースト
+   ============================================================ */
+function confirmDialog(message, onOk) {
+  $('#confirm-body').textContent = message;
+  $('#modal-confirm').classList.add('open');
+  state.pendingAction = onOk;
+}
+function closeConfirm() {
+  $('#modal-confirm').classList.remove('open');
+  state.pendingAction = null;
+}
+let toastTimer = null;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ============================================================
+   ダウンロード
+   ============================================================ */
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => toast('クリップボードにコピー'),
+      () => fallbackCopy(text)
+    );
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '-1000px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('クリップボードにコピー');
+  } catch (e) {
+    toast('コピー失敗: 手動で選択してください');
+  }
+  document.body.removeChild(ta);
+}
+
+/* ============================================================
+   自己テスト（受入基準）
+   ============================================================ */
+function runSelfTest() {
+  // サンプルを使って受入基準を計算し、数値を比較
+  // テスト1: 点滴サンプルA 500mL, インスリン5U, 食事サンプルA 1食5割, ONSサンプルA 1本7割
+  // テスト2: 経腸栄養サンプルA 100mL, 10割
+  const errors = [];
+  const sampleIV_A = state.masters.iv.find((x) => x.id === 'iv-sample-a');
+  const sampleIV_I = state.masters.iv.find((x) => x.id === 'iv-sample-insulin');
+  const sampleMeal_A = state.masters.meal.find((x) => x.id === 'meal-sample-a');
+  const sampleONS_A = state.masters.ons.find((x) => x.id === 'ons-sample-a');
+  const sampleEnt_A = state.masters.enteral.find((x) => x.id === 'enteral-sample-a');
+  if (!sampleIV_A || !sampleIV_I || !sampleMeal_A || !sampleONS_A || !sampleEnt_A) {
+    return { pass: false, message: '自己テスト: サンプルデータが見つかりません' };
+  }
+  // テスト1 用の仮想 rows を直接作って calc
+  const saved = JSON.parse(JSON.stringify(state.current));
+  state.current.rows = {
+    iv: [
+      { id: 't1', itemId: sampleIV_A.id, quantity: 500, memo: '' },
+      { id: 't2', itemId: sampleIV_I.id, quantity: 5, memo: '' }
+    ],
+    meal: [{ id: 't3', itemId: sampleMeal_A.id, mealCount: 1, ratio: 5, memo: '' }],
+    enteral: [],
+    ons: [{ id: 't4', itemId: sampleONS_A.id, quantity: 1, ratio: 7, memo: '' }]
+  };
+  const r1 = calcGrandTotal();
+  const approx = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
+  // 点滴: 200kcal, 糖50, 水500, インス5, 比10
+  if (!approx(r1.perType.iv.nutrients.energyKcal, 200)) errors.push(`点滴 kcal: ${r1.perType.iv.nutrients.energyKcal}`);
+  if (!approx(r1.perType.iv.nutrients.carbohydrateG, 50)) errors.push(`点滴 糖質: ${r1.perType.iv.nutrients.carbohydrateG}`);
+  if (!approx(r1.perType.iv.nutrients.waterMl, 500)) errors.push(`点滴 水分: ${r1.perType.iv.nutrients.waterMl}`);
+  if (!approx(r1.perType.iv.nutrients.insulinU, 5)) errors.push(`点滴 インスリン: ${r1.perType.iv.nutrients.insulinU}`);
+  if (!approx(r1.ivRatio, 10)) errors.push(`点滴糖質インスリン比: ${r1.ivRatio}`);
+  // 食事: 300kcal, 蛋12.5, 脂10, 糖40, 水150
+  if (!approx(r1.perType.meal.nutrients.energyKcal, 300)) errors.push(`食事 kcal: ${r1.perType.meal.nutrients.energyKcal}`);
+  if (!approx(r1.perType.meal.nutrients.proteinG, 12.5)) errors.push(`食事 蛋: ${r1.perType.meal.nutrients.proteinG}`);
+  if (!approx(r1.perType.meal.nutrients.fatG, 10)) errors.push(`食事 脂: ${r1.perType.meal.nutrients.fatG}`);
+  if (!approx(r1.perType.meal.nutrients.carbohydrateG, 40)) errors.push(`食事 糖: ${r1.perType.meal.nutrients.carbohydrateG}`);
+  if (!approx(r1.perType.meal.nutrients.waterMl, 150)) errors.push(`食事 水: ${r1.perType.meal.nutrients.waterMl}`);
+  // ONS: 140kcal, 蛋7, 脂4.2, 糖21, 水87.5
+  if (!approx(r1.perType.ons.nutrients.energyKcal, 140)) errors.push(`ONS kcal: ${r1.perType.ons.nutrients.energyKcal}`);
+  if (!approx(r1.perType.ons.nutrients.proteinG, 7)) errors.push(`ONS 蛋: ${r1.perType.ons.nutrients.proteinG}`);
+  if (!approx(r1.perType.ons.nutrients.fatG, 4.2)) errors.push(`ONS 脂: ${r1.perType.ons.nutrients.fatG}`);
+  if (!approx(r1.perType.ons.nutrients.carbohydrateG, 21)) errors.push(`ONS 糖: ${r1.perType.ons.nutrients.carbohydrateG}`);
+  if (!approx(r1.perType.ons.nutrients.waterMl, 87.5)) errors.push(`ONS 水: ${r1.perType.ons.nutrients.waterMl}`);
+  // 合計: 640, 19.5, 14.2, 111, 737.5
+  if (!approx(r1.grand.energyKcal, 640)) errors.push(`合計 kcal: ${r1.grand.energyKcal}`);
+  if (!approx(r1.grand.proteinG, 19.5)) errors.push(`合計 蛋: ${r1.grand.proteinG}`);
+  if (!approx(r1.grand.fatG, 14.2)) errors.push(`合計 脂: ${r1.grand.fatG}`);
+  if (!approx(r1.grand.carbohydrateG, 111)) errors.push(`合計 糖: ${r1.grand.carbohydrateG}`);
+  if (!approx(r1.grand.waterMl, 737.5)) errors.push(`合計 水: ${r1.grand.waterMl}`);
+  // テスト2: 経腸栄養サンプルA 100mL, 10割
+  state.current.rows = {
+    iv: [],
+    meal: [],
+    enteral: [{ id: 't5', itemId: sampleEnt_A.id, amount: 100, implRatio: 10, memo: '' }],
+    ons: []
+  };
+  const r2 = calcGrandTotal();
+  if (!approx(r2.perType.enteral.nutrients.energyKcal, 100)) errors.push(`経腸 kcal: ${r2.perType.enteral.nutrients.energyKcal}`);
+  if (!approx(r2.perType.enteral.nutrients.proteinG, 4)) errors.push(`経腸 蛋: ${r2.perType.enteral.nutrients.proteinG}`);
+  if (!approx(r2.perType.enteral.nutrients.fatG, 3)) errors.push(`経腸 脂: ${r2.perType.enteral.nutrients.fatG}`);
+  if (!approx(r2.perType.enteral.nutrients.carbohydrateG, 15)) errors.push(`経腸 糖: ${r2.perType.enteral.nutrients.carbohydrateG}`);
+  if (!approx(r2.perType.enteral.nutrients.waterMl, 85)) errors.push(`経腸 水: ${r2.perType.enteral.nutrients.waterMl}`);
+  // 状態復元
+  state.current = saved;
+  return {
+    pass: errors.length === 0,
+    message: errors.length === 0
+      ? '自己テスト合格: 受入基準（点滴・食事・ONS・合計・経腸）すべて一致'
+      : '自己テスト失敗: ' + errors.join(' / ')
+  };
+}
+
+/* ============================================================
+   初期化
+   ============================================================ */
+async function init() {
+  await loadMasters();
+
+  // 初期 row
+  for (const t of TYPES) ensureLastEmptyRow(t);
+
+  // 記録入力
+  $('#rec-date').value = state.current.date || todayStr();
+  $('#rec-casename').value = state.current.caseName || '';
+  $('#rec-date').addEventListener('change', () => {
+    state.current.date = $('#rec-date').value || todayStr();
+    persistAll();
+  });
+  $('#rec-casename').addEventListener('input', () => {
+    state.current.caseName = $('#rec-casename').value;
+    persistAll();
+  });
+
+  // セクション描画
+  for (const t of TYPES) renderSection(t);
+  updateTotals();
+
+  // 空行追加ボタン
+  $$('button[data-add]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const t = b.dataset.add;
+      state.current.rows[t].push(newRow(t));
+      persistAll();
+      renderSection(t);
+    });
+  });
+
+  // 確認モーダル
+  $('#confirm-cancel').addEventListener('click', closeConfirm);
+  $('#confirm-ok').addEventListener('click', () => {
+    const action = state.pendingAction;
+    closeConfirm();
+    if (typeof action === 'function') action();
+  });
+  $('#modal-confirm').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-confirm') closeConfirm();
+  });
+
+  // サマリーコピー
+  $('#btn-regen').addEventListener('click', () => {
+    $('#summary-text').value = buildSummaryText();
+  });
+  $('#btn-copy').addEventListener('click', () => {
+    const txt = $('#summary-text').value || buildSummaryText();
+    $('#summary-text').value = txt;
+    copyToClipboard(txt);
+  });
+
+  // 保存関連
+  $('#btn-save').addEventListener('click', saveCurrent);
+  $('#btn-new').addEventListener('click', () => {
+    confirmDialog('現在の入力をクリアして新規作成しますか？（保存していない場合は失われます）', newRecord);
+  });
+  $('#btn-copy-prev').addEventListener('click', copyPreviousDay);
+  $('#btn-export-records').addEventListener('click', exportRecords);
+  $('#btn-import-records').addEventListener('click', () => $('#file-import-records').click());
+  $('#file-import-records').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => importRecords(reader.result);
+    reader.readAsText(f);
+    e.target.value = '';
+  });
+  renderSaveList();
+
+  // マスタ管理
+  $$('.master-tabs button').forEach((b) => {
+    b.addEventListener('click', () => {
+      $$('.master-tabs button').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+      state.activeMasterType = b.dataset.mt;
+      renderMasterList();
+    });
+  });
+  $('#master-search').addEventListener('input', renderMasterList);
+  $('#btn-master-add').addEventListener('click', () => openMasterForm(null));
+  $('#btn-master-export').addEventListener('click', exportMasters);
+  $('#btn-master-import').addEventListener('click', () => $('#file-master-import').click());
+  $('#file-master-import').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => importMasters(reader.result);
+    reader.readAsText(f);
+    e.target.value = '';
+  });
+  $('#btn-master-reset').addEventListener('click', resetMastersToInitial);
+  $('#master-close').addEventListener('click', closeMasterForm);
+  $('#master-cancel').addEventListener('click', closeMasterForm);
+  $('#master-save').addEventListener('click', saveMasterForm);
+  $('#modal-master').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-master') closeMasterForm();
+  });
+  renderMasterList();
+
+  // 自己テスト
+  const testResult = runSelfTest();
+  const testEl = $('#self-test-result');
+  testEl.classList.remove('hidden');
+  testEl.classList.add(testResult.pass ? 'pass' : 'fail');
+  testEl.textContent = testResult.message;
+  updateTotals(); // 自己テスト後の再描画
+
+  // Service Worker 登録（GitHub Pages 配信時）
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('./service-worker.js').catch((e) => {
+      console.warn('SW 登録失敗', e);
+    });
+  }
+}
+
+// 実行
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+
+</body>
+</html>

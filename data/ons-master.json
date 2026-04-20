@@ -1,0 +1,29 @@
+[
+  {
+    "id": "ons-sample-a",
+    "name": "ONSサンプルA",
+    "kana": "おーえぬえすさんぷるa",
+    "aliases": ["sample-a", "サンプルa", "ons-a"],
+    "category": "サンプル",
+    "tags": ["サンプル", "動作確認"],
+    "favorite": false,
+    "baseAmount": 1,
+    "baseUnit": "本",
+    "nutrients": {
+      "energyKcal": 200,
+      "proteinG": 10,
+      "fatG": 6,
+      "carbohydrateG": 30,
+      "sodiumMEq": 0,
+      "potassiumMEq": 0,
+      "magnesiumMg": 0,
+      "phosphorusMg": 0,
+      "waterMl": 125,
+      "insulinU": 0
+    },
+    "memo": "動作確認用サンプル（実製品ではありません）",
+    "source": "内部サンプル",
+    "sourceStatus": "sample",
+    "updatedAt": "2026-04-19"
+  }
+]
